@@ -641,7 +641,12 @@ local function CreateMainWindow()
     searchButton:SetScript("OnClick", function()
         if LFM:CanSearch() then
             local msg = LFM:FormatSearchMessage()
-            SendChatMessage(msg, "SAY")
+
+            local channelID = GetChannelName("World")
+
+            if channelID then
+                SendChatMessage(msg, "CHANNEL", nil, channelID)
+            end
         end
     end)
 

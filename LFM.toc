@@ -1,0 +1,8 @@
+## Interface: 30300
+## Title: LFM
+## Notes: Looking For More Addon
+## Author: LFM
+## Version: 1.0
+## SavedVariablesPerCharacter: LFM_DB
+
+LFM.lua

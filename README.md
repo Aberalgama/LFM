@@ -12,6 +12,24 @@ LFM helps you quickly identify dungeons you have already completed or have an ex
 * 🆔 **Existing ID Overview**
   Clearly highlights dungeons for which you already have an existing instance ID, helping you avoid accidentally joining a group for a dungeon you cannot enter.
 
+### Images
+
+![Overview](img/lfm_overview.png)
+![Dungeons](img/dungeons_with_id.png)
+![Mode](img/mode.png)
+
+### How to Install
+
+1. Download the addon by clicking the green **`<> Code`** button and selecting **Download ZIP**.
+2. Extract the downloaded ZIP file.
+3. Open the extracted folder.
+4. Rename `LFM-main` to `LFM`.
+5. Copy the `LFM` folder into your `Interface/Addons` folder.
+6. Make sure the final folder structure looks like this:
+
+   `Interface/Addons/LFM/`
+
+   Inside the `LFM` folder, you should see files such as `LFM.lua`, `LFM.toc`, etc.
 
 ## ❤️ Support LFM
 

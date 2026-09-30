@@ -3,41 +3,212 @@
 local LFM = {}
 _G["LFM"] = LFM
 
--- Default options
+-- Default options: Map object with uiName and apiName
 local DUNGEONS = {
-    "Ahn'Kahet",
-    "Auchenai Crypts",
-    "Azjol-Nerub",
-    "Blood Furnance",
-    "Botanica",
-    "Drak'Tharon",
-    "Gundrak",
-    "Halls of Lightning",
-    "Halls of Stone",
-    "Hellfire Ramparts",
-    "Mana-Tombs",
-    "Mechanar",
-    "Nexus",
-    "Oculus",
-    "Old Hillsbrad Foothills",
-    "Sethekk Halls",
-    "Shadow Labyrinth",
-    "Shattered Halls",
-    "Slave Pens",
-    "Steamvault",
-    "The Arcatraz",
-    "Underbog",
-    "Utgarde Keep",
-    "Utgarde Pinnacle",
-    "Violet Hold"
+    { uiName = "Ahn'Kahet", apiName = "Ahn'kahet: The Old Kingdom" },
+    { uiName = "Arcatraz", apiName = "The Arcatraz" },
+    { uiName = "Auchenai Crypts", apiName = "Auchenai Crypts" },
+    { uiName = "Azjol-Nerub", apiName = "Azjol-Nerub" },
+    { uiName = "Blood Furnance", apiName = "The Blood Furnace" },
+    { uiName = "Botanica", apiName = "The Botanica" },
+    { uiName = "Drak'Tharon", apiName = "Drak'Tharon Keep" },
+    { uiName = "Gundrak", apiName = "Gundrak" },
+    { uiName = "Halls of Lightning", apiName = "Halls of Lightning" },
+    { uiName = "Halls of Stone", apiName = "Halls of Stone" },
+    { uiName = "Hellfire Ramparts", apiName = "Hellfire Ramparts" },
+    { uiName = "Mana-Tombs", apiName = "Mana-Tombs" },
+    { uiName = "Mechanar", apiName = "The Mechanar" },
+    { uiName = "Nexus", apiName = "The Nexus" },
+    { uiName = "Oculus", apiName = "The Oculus" },
+    { uiName = "Old Hillsbrad Foothills", apiName = "Old Hillsbrad Foothills" },
+    { uiName = "Sethekk Halls", apiName = "Sethekk Halls" },
+    { uiName = "Shadow Labyrinth", apiName = "Shadow Labyrinth" },
+    { uiName = "Shattered Halls", apiName = "The Shattered Halls" },
+    { uiName = "Slave Pens", apiName = "The Slave Pens" },
+    { uiName = "Steamvault", apiName = "The Steamvault" },
+    { uiName = "Underbog", apiName = "The Underbog" },
+    { uiName = "Utgarde Keep", apiName = "Utgarde Keep" },
+    { uiName = "Utgarde Pinnacle", apiName = "Utgarde Pinnacle" },
+    { uiName = "Violet Hold", apiName = "The Violet Hold" }
 }
-table.sort(DUNGEONS)
+
+table.sort(DUNGEONS, function(a, b) return a.uiName < b.uiName end)
+
 local MODES = { "HC", "Mythic", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "M11", "M12", "M13", "M14", "M15", "M16", "M17", "M18", "M19", "M20", "M21", "M22", "M23", "M24", "M25", "M26", "M27", "M28", "M29", "M30" }
 
 -- Forward declarations
 local mainFrame, minimapButton
 local tankText, healText, ddText
 local dungeonDropDown, modeDropDown, searchButton
+
+-- Helper to find DUNGEONS entry by uiName or object
+function LFM:GetDungeonEntry(dungeon)
+    if type(dungeon) == "table" then return dungeon end
+    if type(dungeon) == "string" and dungeon ~= "" then
+        for _, entry in ipairs(DUNGEONS) do
+            if entry.uiName == dungeon then
+                return entry
+            end
+        end
+    end
+    return nil
+end
+
+-- Debug Print function for local chat frame testing (call manually or when enabled)
+function LFM:DebugPrintLockInfo()
+    if not DEFAULT_CHAT_FRAME then return end
+    local RESET = "|r"
+    local GREEN = "|cff00ff00"
+    local YELLOW = "|cffffd100"
+    local RED = "|cffff3333"
+
+    DEFAULT_CHAT_FRAME:AddMessage(GREEN .. "=== LFM Debug Info ===" .. RESET)
+
+    -- 1. Game modes list
+    local modesStr = table.concat(MODES, ", ")
+    DEFAULT_CHAT_FRAME:AddMessage(YELLOW .. "Available Game Modes: " .. RESET .. modesStr)
+
+    -- 2. All instances from API
+    local num = GetNumSavedInstances()
+    DEFAULT_CHAT_FRAME:AddMessage(YELLOW .. "Saved Instances from API (" .. num .. " total):" .. RESET)
+
+    local lockedList = {}
+    if num == 0 then
+        DEFAULT_CHAT_FRAME:AddMessage("  (No saved instances returned by GetNumSavedInstances)")
+    else
+        for i = 1, num do
+            local name, id, reset, difficulty, isLocked, extended, _, isRaid, maxPlayers, difficultyName = GetSavedInstanceInfo(i)
+            local lockStatus = isLocked and (RED .. "LOCKED" .. RESET) or (GREEN .. "UNLOCKED" .. RESET)
+            DEFAULT_CHAT_FRAME:AddMessage("  [" .. i .. "] Name: '" .. tostring(name) .. "' | Lock: " .. lockStatus .. " | Diff: " .. tostring(difficulty) .. " (" .. tostring(difficultyName) .. ") | ID: " .. tostring(id))
+            if isLocked and name then
+                table.insert(lockedList, tostring(name) .. " (" .. tostring(difficultyName or difficulty) .. ")")
+            end
+        end
+    end
+
+    -- 3. Locked dungeons summary
+    DEFAULT_CHAT_FRAME:AddMessage(YELLOW .. "Dungeons with active ID (Locked):" .. RESET)
+    if #lockedList == 0 then
+        DEFAULT_CHAT_FRAME:AddMessage("  None")
+    else
+        for _, lockedInfo in ipairs(lockedList) do
+            DEFAULT_CHAT_FRAME:AddMessage("  - " .. lockedInfo)
+        end
+    end
+
+    -- 4. Matching results with LFM DUNGEONS dropdown list
+    DEFAULT_CHAT_FRAME:AddMessage(YELLOW .. "Matches found in LFM DUNGEONS list:" .. RESET)
+    local matchCount = 0
+    local currentMode = (LFM_DB and LFM_DB.selected_mode ~= "") and LFM_DB.selected_mode or nil
+    for _, entry in ipairs(DUNGEONS) do
+        if currentMode then
+            if LFM:IsLockedForDungeonAndMode(entry, currentMode) then
+                matchCount = matchCount + 1
+                DEFAULT_CHAT_FRAME:AddMessage("  " .. RED .. "[LOCKED MATCH (" .. currentMode .. ")] " .. RESET .. entry.uiName .. " (API Name: '" .. tostring(entry.apiName) .. "')")
+            end
+        else
+            for i = 1, GetNumSavedInstances() do
+                local name, _, _, _, isLocked, _, _, _, _, difficultyName = GetSavedInstanceInfo(i)
+                if isLocked and name then
+                    local entryUi = entry.uiName
+                    local entryApi = entry.apiName
+                    local cleanName = string.lower(name):gsub("^the%s+", ""):gsub("[%s%p]", "")
+                    local targetApiClean = string.lower(entryApi):gsub("[%s%p]", "")
+                    local targetUiClean = string.lower(entryUi):gsub("^the%s+", ""):gsub("[%s%p]", "")
+                    if cleanName == targetApiClean or cleanName:find(targetUiClean, 1, true) or targetUiClean:find(cleanName, 1, true) then
+                        matchCount = matchCount + 1
+                        DEFAULT_CHAT_FRAME:AddMessage("  " .. YELLOW .. "[SAVED ID] " .. RESET .. entryUi .. " -> API: '" .. tostring(name) .. "' | Diff: '" .. tostring(difficultyName) .. "'")
+                    end
+                end
+            end
+        end
+    end
+    if matchCount == 0 then
+        DEFAULT_CHAT_FRAME:AddMessage("  No matches found")
+    end
+
+    DEFAULT_CHAT_FRAME:AddMessage(GREEN .. "========================" .. RESET)
+end
+
+-- Check if player has an active saved ID (lock) for a specific dungeon and mode combination
+function LFM:IsLockedForDungeonAndMode(dungeon, mode)
+    if not dungeon or dungeon == "" or not mode or mode == "" then
+        return false
+    end
+
+    local modeLower = string.lower(mode)
+
+    -- Saved IDs (locks) ONLY exist for Heroic/HC and base Mythic. M2..M30 have no locks!
+    local isHC = (modeLower == "hc" or modeLower == "heroic")
+    local isMythicBase = (modeLower == "mythic")
+
+    if not (isHC or isMythicBase) then
+        return false
+    end
+
+    local entry = LFM:GetDungeonEntry(dungeon)
+    local uiName = entry and entry.uiName or (type(dungeon) == "string" and dungeon or "")
+    local apiName = entry and entry.apiName or uiName
+    if uiName == "" then return false end
+
+    local targetApiClean = string.lower(apiName):gsub("[%s%p]", "")
+    local targetUiClean = string.lower(uiName):gsub("^the%s+", ""):gsub("[%s%p]", "")
+
+    local num = GetNumSavedInstances()
+    for i = 1, num do
+        local name, _, _, difficulty, isLocked, _, _, _, _, difficultyName = GetSavedInstanceInfo(i)
+        if isLocked and name then
+            local cleanName = string.lower(name):gsub("^the%s+", ""):gsub("[%s%p]", "")
+            if cleanName == targetApiClean or cleanName:find(targetUiClean, 1, true) or targetUiClean:find(cleanName, 1, true) then
+                local diffLower = string.lower(difficultyName or "")
+                local modeMatches = false
+
+                if isHC then
+                    modeMatches = diffLower:find("heroic") or diffLower:find("hc") or (difficulty == 2)
+                elseif isMythicBase then
+                    modeMatches = diffLower:find("mythic") and not diffLower:find("heroic")
+                end
+
+                if modeMatches then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+-- Check if dungeon is locked for the currently selected mode
+function LFM:IsDungeonLocked(dungeon)
+    local mode = LFM_DB and LFM_DB.selected_mode
+    if not mode or mode == "" then
+        return false
+    end
+    return LFM:IsLockedForDungeonAndMode(dungeon, mode)
+end
+
+-- Check if mode is locked for the currently selected dungeon
+function LFM:IsModeLocked(dungeon, mode)
+    return LFM:IsLockedForDungeonAndMode(dungeon, mode)
+end
+
+-- Refresh display text of dropdowns to reflect lock status
+function LFM:RefreshDropdownText()
+    local dungeon = LFM_DB and LFM_DB.selected_dungeon_raid
+    local mode = LFM_DB and LFM_DB.selected_mode
+
+    if dungeonDropDown and dungeon and dungeon ~= "" then
+        local isLocked = LFM:IsLockedForDungeonAndMode(dungeon, mode)
+        local text = isLocked and ("|cffff3333" .. dungeon .. "|r") or dungeon
+        UIDropDownMenu_SetText(dungeonDropDown, text)
+    end
+
+    if modeDropDown and mode and mode ~= "" then
+        local isLocked = LFM:IsLockedForDungeonAndMode(dungeon, mode)
+        local text = isLocked and ("|cffff3333" .. mode .. "|r") or mode
+        UIDropDownMenu_SetText(modeDropDown, text)
+    end
+end
 
 -- Format search message according to selection rules
 function LFM:FormatSearchMessage()
@@ -97,20 +268,28 @@ function LFM:CanSearch()
     local hasDungeon = (dungeon ~= nil and dungeon ~= "")
     local hasMode = (mode ~= nil and mode ~= "")
 
-    return (totalRoles >= 1) and hasDungeon and hasMode
+    if not (totalRoles >= 1 and hasDungeon and hasMode) then
+        return false
+    end
+
+    -- Disable search if player is locked for this specific dungeon and mode combination
+    if LFM:IsLockedForDungeonAndMode(dungeon, mode) then
+        return false
+    end
+
+    return true
 end
 
--- Update search button enabled/disabled state
+-- Update search button enabled/disabled state (keeps mouse enabled so OnEnter tooltip always fires)
 function LFM:UpdateSearchButton()
     if not searchButton then return end
+    searchButton:EnableMouse(true)
     if LFM:CanSearch() then
-        searchButton:Enable()
         if searchButton.icon then
             searchButton.icon:SetDesaturated(false)
             searchButton.icon:SetAlpha(1.0)
         end
     else
-        searchButton:Disable()
         if searchButton.icon then
             searchButton.icon:SetDesaturated(true)
             searchButton.icon:SetAlpha(0.4)
@@ -329,9 +508,12 @@ local function CreateMainWindow()
     mainFrame:SetScript("OnDragStart", mainFrame.StartMoving)
     mainFrame:SetScript("OnDragStop", mainFrame.StopMovingOrSizing)
 
-    -- Re-evaluate search button state whenever mainFrame is shown
+    -- Re-evaluate search button state, dropdown locks & print debug info whenever mainFrame is shown
     mainFrame:SetScript("OnShow", function()
+        RequestRaidInfo()
         LFM:UpdateSearchButton()
+        LFM:RefreshDropdownText()
+        -- LFM:DebugPrintLockInfo() -- Debug print disabled
     end)
 
     -- Backdrop
@@ -375,25 +557,32 @@ local function CreateMainWindow()
         function(v) if LFM_DB then LFM_DB.dds_count = v end end
     )
 
-    -- 4. Dungeon / Raid Dropdown
+    -- 4. Dungeon Dropdown
     dungeonDropDown = CreateFrame("Frame", "LFM_DungeonDropDown", mainFrame, "UIDropDownMenuTemplate")
     dungeonDropDown:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 230, startY)
     UIDropDownMenu_SetWidth(dungeonDropDown, 130)
 
     local dungeonLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     dungeonLabel:SetPoint("BOTTOMLEFT", dungeonDropDown, "TOPLEFT", 18, 4)
-    dungeonLabel:SetText("Dungeon / Raid")
+    dungeonLabel:SetText("Dungeon")
 
     UIDropDownMenu_Initialize(dungeonDropDown, function(self, level)
+        RequestRaidInfo()
+        local selectedMode = LFM_DB and LFM_DB.selected_mode
         local info = UIDropDownMenu_CreateInfo()
-        for _, name in ipairs(DUNGEONS) do
-            info.text = name
+        for _, entry in ipairs(DUNGEONS) do
+            local name = entry.uiName
+            local isLocked = LFM:IsLockedForDungeonAndMode(name, selectedMode)
+            info.text = isLocked and ("|cffff3333" .. name .. "|r") or name
             info.value = name
             info.func = function(btn)
                 if not LFM_DB then LFM_DB = {} end
                 LFM_DB.selected_dungeon_raid = btn.value
                 UIDropDownMenu_SetSelectedValue(dungeonDropDown, btn.value)
-                UIDropDownMenu_SetText(dungeonDropDown, btn.value)
+                local currentMode = LFM_DB and LFM_DB.selected_mode
+                local text = LFM:IsLockedForDungeonAndMode(btn.value, currentMode) and ("|cffff3333" .. btn.value .. "|r") or btn.value
+                UIDropDownMenu_SetText(dungeonDropDown, text)
+                LFM:RefreshDropdownText()
                 LFM:UpdateSearchButton()
                 CloseMenus()
             end
@@ -412,15 +601,21 @@ local function CreateMainWindow()
     modeLabel:SetText("Mode")
 
     UIDropDownMenu_Initialize(modeDropDown, function(self, level)
+        RequestRaidInfo()
+        local selectedDungeon = LFM_DB and LFM_DB.selected_dungeon_raid
         local info = UIDropDownMenu_CreateInfo()
         for _, mode in ipairs(MODES) do
-            info.text = mode
+            local isLocked = LFM:IsLockedForDungeonAndMode(selectedDungeon, mode)
+            info.text = isLocked and ("|cffff3333" .. mode .. "|r") or mode
             info.value = mode
             info.func = function(btn)
                 if not LFM_DB then LFM_DB = {} end
                 LFM_DB.selected_mode = btn.value
                 UIDropDownMenu_SetSelectedValue(modeDropDown, btn.value)
-                UIDropDownMenu_SetText(modeDropDown, btn.value)
+                local currentDungeon = LFM_DB and LFM_DB.selected_dungeon_raid
+                local text = LFM:IsLockedForDungeonAndMode(currentDungeon, btn.value) and ("|cffff3333" .. btn.value .. "|r") or btn.value
+                UIDropDownMenu_SetText(modeDropDown, text)
+                LFM:RefreshDropdownText()
                 LFM:UpdateSearchButton()
                 CloseMenus()
             end
@@ -452,10 +647,26 @@ local function CreateMainWindow()
 
     searchButton:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:AddLine("Search")
-        if not LFM:CanSearch() then
-            GameTooltip:AddLine("Select at least 1 role, a Dungeon/Raid, and a Mode.", 1, 0.2, 0.2, true)
+        GameTooltip:AddLine("Search", 1, 1, 1)
+
+        local t = (LFM_DB and LFM_DB.tanks_count) or 0
+        local h = (LFM_DB and LFM_DB.heals_count) or 0
+        local d = (LFM_DB and LFM_DB.dds_count) or 0
+        local dungeon = LFM_DB and LFM_DB.selected_dungeon_raid
+        local mode = LFM_DB and LFM_DB.selected_mode
+
+        local totalRoles = t + h + d
+        local hasDungeon = (dungeon ~= nil and dungeon ~= "")
+        local hasMode = (mode ~= nil and mode ~= "")
+
+        if not (totalRoles >= 1 and hasDungeon and hasMode) then
+            GameTooltip:AddLine("Select at least 1 role, a Dungeon, and a Mode.", 1, 0.2, 0.2, true)
+        elseif LFM:IsLockedForDungeonAndMode(dungeon, mode) then
+            GameTooltip:AddLine("You already have an active ID (Lock) for " .. dungeon .. " on " .. mode .. "!", 1, 0.2, 0.2, true)
+        else
+            GameTooltip:AddLine("Click to post LFM message to SAY channel.", 0.2, 1, 0.2, true)
         end
+
         GameTooltip:Show()
     end)
 
@@ -473,11 +684,15 @@ end
 -- Event Handling
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("ADDON_LOADED")
+eventFrame:RegisterEvent("UPDATE_INSTANCE_INFO")
 eventFrame:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == "LFM" then
         LFM:ResetData()
         CreateMainWindow()
         InitMinimapIcon()
+        RequestRaidInfo()
+    elseif event == "UPDATE_INSTANCE_INFO" then
+        LFM:RefreshDropdownText()
     end
 end)
 

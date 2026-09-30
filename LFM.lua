@@ -669,7 +669,7 @@ local function CreateMainWindow()
         elseif LFM:IsLockedForDungeonAndMode(dungeon, mode) then
             GameTooltip:AddLine("You already have an active ID (Lock) for " .. dungeon .. " on " .. mode .. "!", 1, 0.2, 0.2, true)
         else
-            GameTooltip:AddLine("Click to post LFM message to SAY channel.", 0.2, 1, 0.2, true)
+            GameTooltip:AddLine("Click to post LFM message to World channel.", 0.2, 1, 0.2, true)
         end
 
         GameTooltip:Show()

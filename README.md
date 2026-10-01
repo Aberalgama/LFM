@@ -1,16 +1,29 @@
-# LFM – Looking For Mythic/Man
+# LFM – Looking For Mythic/Member
 
 **LFM** is a lightweight addon designed to make finding groups for **Mythic and Mythic+ dungeons** easier and more convenient.
 
-LFM helps you quickly identify dungeons you have already completed or have an existing ID for.
+LFM helps you quickly identify dungeons you have already completed or have an existing ID for, and automates posting group search messages.
 
 ## Features
 
 * 🚫 **No More Manual LFM Messages**
-  Stop typing repetitive messages like *"LF Tank"*, *"LF Heal"* or *"LF DPS"*. LFM makes finding the missing roles quick and effortless.
+  Stop typing repetitive messages like *"LF Tank"*, *"LF Heal"* or *"LF DPS"*. LFM formats and posts your search message directly to World or Guild chat channels with a single click.
 
-* 🆔 **Existing ID Overview**
-  Clearly highlights dungeons for which you already have an existing instance ID, helping you avoid accidentally joining a group for a dungeon you cannot enter.
+* 🔴 **Saved ID / Lockout Identification (Red Text)**
+  - LFM checks your character's active instance lockouts/IDs.
+  - When a mode (e.g., Heroic or Mythic) is selected, any dungeon for which you **already have an active ID** is highlighted in **RED** text in the dropdown menus.
+  - Modes where you have an active lockout are also displayed in **RED**.
+  - Selecting a locked dungeon/mode disables the search/post buttons to prevent accidentally looking for members for locked dungeons.
+
+* ⚙️ **Optional Group Requirements**
+  - **Minimum required ST DPS**: Specify a Single-Target DPS requirement (e.g., `1K+` up to `30K+`). When at least 1 DD is selected, this is added to your message (e.g., `LF 2 DDs (2K+ ST) for Azjol-Nerub HC`).
+  - **Runes Roll Rules**: Select between **Round Robin** or **All NEED** loot rules. Appends the rune rule to your broadcast message (e.g., `, on Runes we will use 'Round Robin'`).
+
+* 💬 **Chat Destinations**
+  - Post directly to the **World** channel or **Guild** chat with dedicated action buttons.
+
+* 🔘 **Minimap Icon & Slash Commands**
+  - Click the minimap icon or type `/lfm` in chat to toggle the LFM window at any time.
 
 ### Images
 

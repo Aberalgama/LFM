@@ -429,6 +429,7 @@ local function CreateMinimapButton()
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:AddLine("LFM")
         GameTooltip:AddLine("Click to open/close LFM window.", 1, 1, 1)
+        GameTooltip:AddLine("You can also type |cffffd100/lfm|r to toggle this window.", 0.8, 0.8, 0.8, true)
         GameTooltip:Show()
     end)
 
@@ -486,6 +487,7 @@ local function InitMinimapIcon()
                 if not tooltip or not tooltip.AddLine then return end
                 tooltip:AddLine("LFM")
                 tooltip:AddLine("|cffffff00Click to open/close LFM window.|r")
+                tooltip:AddLine("You can also type |cffffd100/lfm|r to toggle this window.", 0.8, 0.8, 0.8, true)
             end,
         })
         LDBIcon:Register("LFM", LDBObj, LFM_DB.minimap)
@@ -682,14 +684,14 @@ local function CreateMainWindow()
         end
     end)
 
-    -- 5. Dungeon / Raid Dropdown
+    -- 5. Dungeon Dropdown
     dungeonDropDown = CreateFrame("Frame", "LFM_DungeonDropDown", mainFrame, "UIDropDownMenuTemplate")
     dungeonDropDown:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 370, startY)
     UIDropDownMenu_SetWidth(dungeonDropDown, 140)
 
     local dungeonLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     dungeonLabel:SetPoint("BOTTOM", dungeonDropDown, "TOP", 10, 4)
-    dungeonLabel:SetText("Dungeon / Raid")
+    dungeonLabel:SetText("Dungeon")
 
     UIDropDownMenu_Initialize(dungeonDropDown, function(self, level)
         RequestRaidInfo()

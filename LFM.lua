@@ -38,8 +38,19 @@ local MODES = { "HC", "Mythic", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", 
 
 -- Forward declarations
 local mainFrame, minimapButton
-local tankText, healText, ddText
-local dungeonDropDown, modeDropDown, searchButton
+local tankText, healText, ddText, stDpsText
+local dungeonDropDown, modeDropDown
+local roundRobinCB, allNeedCB, worldButton, guildButton
+
+-- Helper to format ST DPS numeric value to string ("1K+", "1.5K+", "30K+", or "")
+function LFM:FormatSTDps(val)
+    if not val or val < 1.0 then return "" end
+    if val == math.floor(val) then
+        return string.format("%dK+", val)
+    else
+        return string.format("%.1fK+", val)
+    end
+end
 
 -- Helper to find DUNGEONS entry by uiName or object
 function LFM:GetDungeonEntry(dungeon)
@@ -217,6 +228,8 @@ function LFM:FormatSearchMessage()
     local d = (LFM_DB and LFM_DB.dds_count) or 0
     local dungeon = (LFM_DB and LFM_DB.selected_dungeon_raid) or ""
     local mode = (LFM_DB and LFM_DB.selected_mode) or ""
+    local stDpsStr = LFM:FormatSTDps(LFM_DB and LFM_DB.st_dps)
+    local runesRoll = LFM_DB and LFM_DB.runes_roll
 
     local roles = {}
 
@@ -237,11 +250,19 @@ function LFM:FormatSearchMessage()
     end
 
     if d > 0 then
+        local ddStr = ""
         if d == 1 then
-            table.insert(roles, "1 DD")
+            ddStr = "1 DD"
         else
-            table.insert(roles, d .. " DDs")
+            ddStr = d .. " DDs"
         end
+
+        -- Append ST DPS if at least 1 DD is selected AND ST DPS is non-empty
+        if stDpsStr ~= "" then
+            ddStr = ddStr .. " (" .. stDpsStr .. " ST)"
+        end
+
+        table.insert(roles, ddStr)
     end
 
     local rolesText = ""
@@ -253,7 +274,14 @@ function LFM:FormatSearchMessage()
         rolesText = roles[1] .. ", " .. roles[2] .. " and " .. roles[3]
     end
 
-    return "LF " .. rolesText .. " for " .. dungeon .. " " .. mode
+    local msg = "LF " .. rolesText .. " for " .. dungeon .. " " .. mode
+
+    -- Append Runes Roll if selected
+    if runesRoll and runesRoll ~= "" then
+        msg = msg .. ", on Runes we will use '" .. runesRoll .. "'"
+    end
+
+    return msg
 end
 
 -- Check if user can click search button
@@ -280,19 +308,41 @@ function LFM:CanSearch()
     return true
 end
 
--- Update search button enabled/disabled state (keeps mouse enabled so OnEnter tooltip always fires)
+-- Update action buttons enabled/disabled state & position based on guild membership
 function LFM:UpdateSearchButton()
-    if not searchButton then return end
-    searchButton:EnableMouse(true)
-    if LFM:CanSearch() then
-        if searchButton.icon then
-            searchButton.icon:SetDesaturated(false)
-            searchButton.icon:SetAlpha(1.0)
+    local canSearch = LFM:CanSearch()
+    local inGuild = IsInGuild()
+
+    if guildButton then
+        if inGuild then
+            guildButton:Show()
+            guildButton:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 320, -220)
+            if worldButton then
+                worldButton:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 210, -220)
+            end
+        else
+            guildButton:Hide()
+            if worldButton then
+                worldButton:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 265, -220)
+            end
         end
-    else
-        if searchButton.icon then
-            searchButton.icon:SetDesaturated(true)
-            searchButton.icon:SetAlpha(0.4)
+    end
+
+    if worldButton then
+        worldButton:EnableMouse(true)
+        if canSearch then
+            worldButton:Enable()
+        else
+            worldButton:Disable()
+        end
+    end
+
+    if guildButton then
+        guildButton:EnableMouse(true)
+        if canSearch then
+            guildButton:Enable()
+        else
+            guildButton:Disable()
         end
     end
 end
@@ -305,11 +355,17 @@ function LFM:ResetData()
     LFM_DB.dds_count = 0
     LFM_DB.selected_dungeon_raid = ""
     LFM_DB.selected_mode = ""
+    LFM_DB.st_dps = 0
+    LFM_DB.runes_roll = nil
     LFM_DB.minimap = LFM_DB.minimap or { minimapPos = 45 }
 
     if tankText then tankText:SetText("0") end
     if healText then healText:SetText("0") end
     if ddText then ddText:SetText("0") end
+    if stDpsText then stDpsText:SetText("") end
+
+    if roundRobinCB then roundRobinCB:SetChecked(false) end
+    if allNeedCB then allNeedCB:SetChecked(false) end
 
     if dungeonDropDown then
         UIDropDownMenu_SetSelectedValue(dungeonDropDown, nil)
@@ -439,10 +495,11 @@ local function InitMinimapIcon()
 end
 
 -- Create Counter Control (Box + Up/Down arrows)
-local function CreateCounterControl(parent, labelText, x, y, getValue, setValue)
+local function CreateCounterControl(parent, labelText, x, y, getValue, setValue, boxWidth)
+    local width = boxWidth or 36
     -- Display Box
     local box = CreateFrame("Frame", nil, parent)
-    box:SetWidth(36)
+    box:SetWidth(width)
     box:SetHeight(32)
     box:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
     box:SetBackdrop({
@@ -470,10 +527,12 @@ local function CreateCounterControl(parent, labelText, x, y, getValue, setValue)
     upBtn:SetPoint("TOPLEFT", box, "TOPRIGHT", 2, 0)
     upBtn:SetScript("OnClick", function()
         local current = getValue()
-        if current < 39 then
-            setValue(current + 1)
-            valueText:SetText(tostring(current + 1))
-            LFM:UpdateSearchButton()
+        if type(current) == "number" then
+            if current < 39 then
+                setValue(current + 1)
+                valueText:SetText(tostring(current + 1))
+                LFM:UpdateSearchButton()
+            end
         end
     end)
 
@@ -484,21 +543,55 @@ local function CreateCounterControl(parent, labelText, x, y, getValue, setValue)
     downBtn:SetPoint("BOTTOMLEFT", box, "BOTTOMRIGHT", 2, 0)
     downBtn:SetScript("OnClick", function()
         local current = getValue()
-        if current > 0 then
-            setValue(current - 1)
-            valueText:SetText(tostring(current - 1))
-            LFM:UpdateSearchButton()
+        if type(current) == "number" then
+            if current > 0 then
+                setValue(current - 1)
+                valueText:SetText(tostring(current - 1))
+                LFM:UpdateSearchButton()
+            end
         end
     end)
 
     return valueText
 end
 
+-- Setup Tooltips for World and Guild action buttons
+local function SetupActionButtonTooltip(btn, channelName)
+    btn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Send to " .. channelName, 1, 1, 1)
+
+        local t = (LFM_DB and LFM_DB.tanks_count) or 0
+        local h = (LFM_DB and LFM_DB.heals_count) or 0
+        local d = (LFM_DB and LFM_DB.dds_count) or 0
+        local dungeon = LFM_DB and LFM_DB.selected_dungeon_raid
+        local mode = LFM_DB and LFM_DB.selected_mode
+
+        local totalRoles = t + h + d
+        local hasDungeon = (dungeon ~= nil and dungeon ~= "")
+        local hasMode = (mode ~= nil and mode ~= "")
+
+        if not (totalRoles >= 1 and hasDungeon and hasMode) then
+            GameTooltip:AddLine("Select at least 1 role, a Dungeon, and a Mode.", 1, 0.2, 0.2, true)
+        elseif LFM:IsLockedForDungeonAndMode(dungeon, mode) then
+            GameTooltip:AddLine("You already have an active ID (Lock) for " .. dungeon .. " on " .. mode .. "!", 1, 0.2, 0.2, true)
+        else
+            GameTooltip:AddLine("Click to post LFM message to " .. channelName .. " channel.", 0.2, 1, 0.2, true)
+        end
+
+        GameTooltip:Show()
+    end)
+
+    btn:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+end
+
 -- Create Main Window
 local function CreateMainWindow()
     mainFrame = CreateFrame("Frame", "LFM_MainFrame", UIParent)
     mainFrame:SetWidth(620)
-    mainFrame:SetHeight(130)
+    mainFrame:SetHeight(270)
     mainFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     mainFrame:SetFrameStrata("HIGH")
     mainFrame:SetClampedToScreen(true)
@@ -527,7 +620,7 @@ local function CreateMainWindow()
     -- Add to UISpecialFrames to allow closing with Escape
     tinsert(UISpecialFrames, "LFM_MainFrame")
 
-    -- Title
+    -- SECTION 1: Looking For
     local title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOP", mainFrame, "TOP", 0, -14)
     title:SetText("Looking For")
@@ -536,8 +629,7 @@ local function CreateMainWindow()
     local closeBtn = CreateFrame("Button", nil, mainFrame, "UIPanelCloseButton")
     closeBtn:SetPoint("TOPRIGHT", mainFrame, "TOPRIGHT", -6, -6)
 
-    -- Control positions
-    local startY = -65
+    local startY = -55
 
     -- 1. Tank Counter
     tankText = CreateCounterControl(mainFrame, "Tank", 20, startY,
@@ -557,43 +649,9 @@ local function CreateMainWindow()
         function(v) if LFM_DB then LFM_DB.dds_count = v end end
     )
 
-    -- 4. Dungeon Dropdown
-    dungeonDropDown = CreateFrame("Frame", "LFM_DungeonDropDown", mainFrame, "UIDropDownMenuTemplate")
-    dungeonDropDown:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 230, startY)
-    UIDropDownMenu_SetWidth(dungeonDropDown, 130)
-
-    local dungeonLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    dungeonLabel:SetPoint("BOTTOMLEFT", dungeonDropDown, "TOPLEFT", 18, 4)
-    dungeonLabel:SetText("Dungeon")
-
-    UIDropDownMenu_Initialize(dungeonDropDown, function(self, level)
-        RequestRaidInfo()
-        local selectedMode = LFM_DB and LFM_DB.selected_mode
-        local info = UIDropDownMenu_CreateInfo()
-        for _, entry in ipairs(DUNGEONS) do
-            local name = entry.uiName
-            local isLocked = LFM:IsLockedForDungeonAndMode(name, selectedMode)
-            info.text = isLocked and ("|cffff3333" .. name .. "|r") or name
-            info.value = name
-            info.func = function(btn)
-                if not LFM_DB then LFM_DB = {} end
-                LFM_DB.selected_dungeon_raid = btn.value
-                UIDropDownMenu_SetSelectedValue(dungeonDropDown, btn.value)
-                local currentMode = LFM_DB and LFM_DB.selected_mode
-                local text = LFM:IsLockedForDungeonAndMode(btn.value, currentMode) and ("|cffff3333" .. btn.value .. "|r") or btn.value
-                UIDropDownMenu_SetText(dungeonDropDown, text)
-                LFM:RefreshDropdownText()
-                LFM:UpdateSearchButton()
-                CloseMenus()
-            end
-            info.checked = (LFM_DB and LFM_DB.selected_dungeon_raid == name)
-            UIDropDownMenu_AddButton(info, level)
-        end
-    end)
-
-    -- 5. Mode Dropdown
+    -- 4. Mode Dropdown
     modeDropDown = CreateFrame("Frame", "LFM_ModeDropDown", mainFrame, "UIDropDownMenuTemplate")
-    modeDropDown:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 380, startY)
+    modeDropDown:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 230, startY)
     UIDropDownMenu_SetWidth(modeDropDown, 85)
 
     local modeLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -624,62 +682,174 @@ local function CreateMainWindow()
         end
     end)
 
-    -- 6. Search Icon Button (Standalone icon button without metallic button background)
-    searchButton = CreateFrame("Button", "LFM_SearchButton", mainFrame)
-    searchButton:SetWidth(32)
-    searchButton:SetHeight(32)
-    searchButton:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 515, startY)
+    -- 5. Dungeon / Raid Dropdown
+    dungeonDropDown = CreateFrame("Frame", "LFM_DungeonDropDown", mainFrame, "UIDropDownMenuTemplate")
+    dungeonDropDown:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 335, startY)
+    UIDropDownMenu_SetWidth(dungeonDropDown, 140)
 
-    local searchIcon = searchButton:CreateTexture(nil, "ARTWORK")
-    searchIcon:SetAllPoints(searchButton)
-    searchIcon:SetTexture("Interface\\Icons\\INV_Misc_Spyglass_02")
-    searchIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    searchButton.icon = searchIcon
+    local dungeonLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    dungeonLabel:SetPoint("BOTTOMLEFT", dungeonDropDown, "TOPLEFT", 18, 4)
+    dungeonLabel:SetText("Dungeon / Raid")
 
-    searchButton:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square")
+    UIDropDownMenu_Initialize(dungeonDropDown, function(self, level)
+        RequestRaidInfo()
+        local selectedMode = LFM_DB and LFM_DB.selected_mode
+        local info = UIDropDownMenu_CreateInfo()
+        for _, entry in ipairs(DUNGEONS) do
+            local name = entry.uiName
+            local isLocked = LFM:IsLockedForDungeonAndMode(name, selectedMode)
+            info.text = isLocked and ("|cffff3333" .. name .. "|r") or name
+            info.value = name
+            info.func = function(btn)
+                if not LFM_DB then LFM_DB = {} end
+                LFM_DB.selected_dungeon_raid = btn.value
+                UIDropDownMenu_SetSelectedValue(dungeonDropDown, btn.value)
+                local currentMode = LFM_DB and LFM_DB.selected_mode
+                local text = LFM:IsLockedForDungeonAndMode(btn.value, currentMode) and ("|cffff3333" .. btn.value .. "|r") or btn.value
+                UIDropDownMenu_SetText(dungeonDropDown, text)
+                LFM:RefreshDropdownText()
+                LFM:UpdateSearchButton()
+                CloseMenus()
+            end
+            info.checked = (LFM_DB and LFM_DB.selected_dungeon_raid == name)
+            UIDropDownMenu_AddButton(info, level)
+        end
+    end)
 
-    searchButton:SetScript("OnClick", function()
+
+    -- SECTION 2: Optional
+    local optionalTitle = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    optionalTitle:SetPoint("TOP", mainFrame, "TOP", 0, -105)
+    optionalTitle:SetText("Optional")
+
+    local optY = -145
+
+    -- Minimum required ST DPS Counter
+    local stBox = CreateFrame("Frame", nil, mainFrame)
+    stBox:SetWidth(60)
+    stBox:SetHeight(32)
+    stBox:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 20, optY)
+    stBox:SetBackdrop({
+        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    })
+    stBox:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
+    stBox:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
+
+    local stLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    stLabel:SetPoint("BOTTOMLEFT", stBox, "TOPLEFT", 0, 4)
+    stLabel:SetText("Minimum required ST DPS")
+
+    stDpsText = stBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
+    stDpsText:SetPoint("CENTER", stBox, "CENTER", 0, 0)
+    stDpsText:SetText(LFM:FormatSTDps(LFM_DB and LFM_DB.st_dps))
+
+    local stUpBtn = CreateFrame("Button", nil, mainFrame, "UIPanelScrollUpButtonTemplate")
+    stUpBtn:SetWidth(18)
+    stUpBtn:SetHeight(16)
+    stUpBtn:SetPoint("TOPLEFT", stBox, "TOPRIGHT", 2, 0)
+    stUpBtn:SetScript("OnClick", function()
+        local current = LFM_DB and LFM_DB.st_dps or 0
+        if current < 1.0 then
+            LFM_DB.st_dps = 1.0
+        elseif current < 30.0 then
+            LFM_DB.st_dps = current + 0.5
+        end
+        stDpsText:SetText(LFM:FormatSTDps(LFM_DB.st_dps))
+        LFM:UpdateSearchButton()
+    end)
+
+    local stDownBtn = CreateFrame("Button", nil, mainFrame, "UIPanelScrollDownButtonTemplate")
+    stDownBtn:SetWidth(18)
+    stDownBtn:SetHeight(16)
+    stDownBtn:SetPoint("BOTTOMLEFT", stBox, "BOTTOMRIGHT", 2, 0)
+    stDownBtn:SetScript("OnClick", function()
+        local current = LFM_DB and LFM_DB.st_dps or 0
+        if current > 1.0 then
+            LFM_DB.st_dps = current - 0.5
+        elseif current == 1.0 then
+            LFM_DB.st_dps = 0
+        end
+        stDpsText:SetText(LFM:FormatSTDps(LFM_DB and LFM_DB.st_dps))
+        LFM:UpdateSearchButton()
+    end)
+
+    -- Runes Roll Checkboxes
+    local runesLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    runesLabel:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 250, -125)
+    runesLabel:SetText("Runes roll")
+
+    roundRobinCB = CreateFrame("CheckButton", "LFM_RoundRobinCB", mainFrame, "UICheckButtonTemplate")
+    roundRobinCB:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 250, optY + 2)
+    _G[roundRobinCB:GetName() .. "Text"]:SetText("Round Robin")
+
+    allNeedCB = CreateFrame("CheckButton", "LFM_AllNeedCB", mainFrame, "UICheckButtonTemplate")
+    allNeedCB:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 400, optY + 2)
+    _G[allNeedCB:GetName() .. "Text"]:SetText("All NEED")
+
+    roundRobinCB:SetScript("OnClick", function(self)
+        if self:GetChecked() then
+            LFM_DB.runes_roll = "Round Robin"
+            allNeedCB:SetChecked(false)
+        else
+            LFM_DB.runes_roll = nil
+        end
+        LFM:UpdateSearchButton()
+    end)
+
+    allNeedCB:SetScript("OnClick", function(self)
+        if self:GetChecked() then
+            LFM_DB.runes_roll = "All NEED"
+            roundRobinCB:SetChecked(false)
+        else
+            LFM_DB.runes_roll = nil
+        end
+        LFM:UpdateSearchButton()
+    end)
+
+
+    -- SECTION 3: In
+    local inTitle = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    inTitle:SetPoint("TOP", mainFrame, "TOP", 0, -192)
+    inTitle:SetText("In")
+
+    -- World Button
+    worldButton = CreateFrame("Button", "LFM_WorldButton", mainFrame, "UIPanelButtonTemplate")
+    worldButton:SetWidth(90)
+    worldButton:SetHeight(28)
+    worldButton:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 210, -220)
+    worldButton:SetText("World")
+
+    worldButton:SetScript("OnClick", function()
         if LFM:CanSearch() then
             local msg = LFM:FormatSearchMessage()
-
             local channelID = GetChannelName("World")
-
             if channelID then
                 SendChatMessage(msg, "CHANNEL", nil, channelID)
             end
         end
     end)
+    SetupActionButtonTooltip(worldButton, "World")
 
-    searchButton:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:AddLine("Search", 1, 1, 1)
+    -- Guild Button
+    guildButton = CreateFrame("Button", "LFM_GuildButton", mainFrame, "UIPanelButtonTemplate")
+    guildButton:SetWidth(90)
+    guildButton:SetHeight(28)
+    guildButton:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 320, -220)
+    guildButton:SetText("Guild")
 
-        local t = (LFM_DB and LFM_DB.tanks_count) or 0
-        local h = (LFM_DB and LFM_DB.heals_count) or 0
-        local d = (LFM_DB and LFM_DB.dds_count) or 0
-        local dungeon = LFM_DB and LFM_DB.selected_dungeon_raid
-        local mode = LFM_DB and LFM_DB.selected_mode
-
-        local totalRoles = t + h + d
-        local hasDungeon = (dungeon ~= nil and dungeon ~= "")
-        local hasMode = (mode ~= nil and mode ~= "")
-
-        if not (totalRoles >= 1 and hasDungeon and hasMode) then
-            GameTooltip:AddLine("Select at least 1 role, a Dungeon, and a Mode.", 1, 0.2, 0.2, true)
-        elseif LFM:IsLockedForDungeonAndMode(dungeon, mode) then
-            GameTooltip:AddLine("You already have an active ID (Lock) for " .. dungeon .. " on " .. mode .. "!", 1, 0.2, 0.2, true)
-        else
-            GameTooltip:AddLine("Click to post LFM message to World channel.", 0.2, 1, 0.2, true)
+    guildButton:SetScript("OnClick", function()
+        if LFM:CanSearch() then
+            local msg = LFM:FormatSearchMessage()
+            SendChatMessage(msg, "GUILD")
         end
-
-        GameTooltip:Show()
     end)
+    SetupActionButtonTooltip(guildButton, "Guild")
 
-    searchButton:SetScript("OnLeave", function()
-        GameTooltip:Hide()
-    end)
 
-    -- Explicitly sync search button state after window creation
+    -- Explicitly sync action buttons & window state after window creation
     LFM:UpdateSearchButton()
 
     -- Initially hidden until minimap icon or command opens it

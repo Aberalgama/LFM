@@ -316,14 +316,14 @@ function LFM:UpdateSearchButton()
     if guildButton then
         if inGuild then
             guildButton:Show()
-            guildButton:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 320, -220)
+            guildButton:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 320, -222)
             if worldButton then
-                worldButton:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 210, -220)
+                worldButton:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 210, -222)
             end
         else
             guildButton:Hide()
             if worldButton then
-                worldButton:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 265, -220)
+                worldButton:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 265, -222)
             end
         end
     end
@@ -511,9 +511,9 @@ local function CreateCounterControl(parent, labelText, x, y, getValue, setValue,
     box:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
     box:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
 
-    -- Header Label anchored above the display box
+    -- Header Label centered above the display box + arrows control group
     local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    label:SetPoint("BOTTOMLEFT", box, "TOPLEFT", 0, 4)
+    label:SetPoint("BOTTOM", box, "TOP", 10, 4)
     label:SetText(labelText)
 
     local valueText = box:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
@@ -622,14 +622,14 @@ local function CreateMainWindow()
 
     -- SECTION 1: Looking For
     local title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOP", mainFrame, "TOP", 0, -14)
+    title:SetPoint("TOP", mainFrame, "TOP", 0, -12)
     title:SetText("Looking For")
 
     -- Close Button
     local closeBtn = CreateFrame("Button", nil, mainFrame, "UIPanelCloseButton")
     closeBtn:SetPoint("TOPRIGHT", mainFrame, "TOPRIGHT", -6, -6)
 
-    local startY = -55
+    local startY = -52
 
     -- 1. Tank Counter
     tankText = CreateCounterControl(mainFrame, "Tank", 20, startY,
@@ -651,11 +651,11 @@ local function CreateMainWindow()
 
     -- 4. Mode Dropdown
     modeDropDown = CreateFrame("Frame", "LFM_ModeDropDown", mainFrame, "UIDropDownMenuTemplate")
-    modeDropDown:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 230, startY)
+    modeDropDown:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 240, startY)
     UIDropDownMenu_SetWidth(modeDropDown, 85)
 
     local modeLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    modeLabel:SetPoint("BOTTOMLEFT", modeDropDown, "TOPLEFT", 18, 4)
+    modeLabel:SetPoint("BOTTOM", modeDropDown, "TOP", 10, 4)
     modeLabel:SetText("Mode")
 
     UIDropDownMenu_Initialize(modeDropDown, function(self, level)
@@ -684,11 +684,11 @@ local function CreateMainWindow()
 
     -- 5. Dungeon / Raid Dropdown
     dungeonDropDown = CreateFrame("Frame", "LFM_DungeonDropDown", mainFrame, "UIDropDownMenuTemplate")
-    dungeonDropDown:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 335, startY)
+    dungeonDropDown:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 370, startY)
     UIDropDownMenu_SetWidth(dungeonDropDown, 140)
 
     local dungeonLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    dungeonLabel:SetPoint("BOTTOMLEFT", dungeonDropDown, "TOPLEFT", 18, 4)
+    dungeonLabel:SetPoint("BOTTOM", dungeonDropDown, "TOP", 10, 4)
     dungeonLabel:SetText("Dungeon / Raid")
 
     UIDropDownMenu_Initialize(dungeonDropDown, function(self, level)
@@ -719,16 +719,16 @@ local function CreateMainWindow()
 
     -- SECTION 2: Optional
     local optionalTitle = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    optionalTitle:SetPoint("TOP", mainFrame, "TOP", 0, -105)
+    optionalTitle:SetPoint("TOP", mainFrame, "TOP", 0, -98)
     optionalTitle:SetText("Optional")
 
-    local optY = -145
+    local optY = -146
 
     -- Minimum required ST DPS Counter
     local stBox = CreateFrame("Frame", nil, mainFrame)
     stBox:SetWidth(60)
     stBox:SetHeight(32)
-    stBox:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 20, optY)
+    stBox:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 70, optY)
     stBox:SetBackdrop({
         bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -739,7 +739,7 @@ local function CreateMainWindow()
     stBox:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
 
     local stLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    stLabel:SetPoint("BOTTOMLEFT", stBox, "TOPLEFT", 0, 4)
+    stLabel:SetPoint("BOTTOM", stBox, "TOP", 10, 4)
     stLabel:SetText("Minimum required ST DPS")
 
     stDpsText = stBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
@@ -778,15 +778,15 @@ local function CreateMainWindow()
 
     -- Runes Roll Checkboxes
     local runesLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    runesLabel:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 250, -125)
+    runesLabel:SetPoint("BOTTOM", mainFrame, "TOPLEFT", 385, optY + 4)
     runesLabel:SetText("Runes roll")
 
     roundRobinCB = CreateFrame("CheckButton", "LFM_RoundRobinCB", mainFrame, "UICheckButtonTemplate")
-    roundRobinCB:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 250, optY + 2)
+    roundRobinCB:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 270, optY + 2)
     _G[roundRobinCB:GetName() .. "Text"]:SetText("Round Robin")
 
     allNeedCB = CreateFrame("CheckButton", "LFM_AllNeedCB", mainFrame, "UICheckButtonTemplate")
-    allNeedCB:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 400, optY + 2)
+    allNeedCB:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 410, optY + 2)
     _G[allNeedCB:GetName() .. "Text"]:SetText("All NEED")
 
     roundRobinCB:SetScript("OnClick", function(self)
@@ -819,7 +819,7 @@ local function CreateMainWindow()
     worldButton = CreateFrame("Button", "LFM_WorldButton", mainFrame, "UIPanelButtonTemplate")
     worldButton:SetWidth(90)
     worldButton:SetHeight(28)
-    worldButton:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 210, -220)
+    worldButton:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 210, -222)
     worldButton:SetText("World")
 
     worldButton:SetScript("OnClick", function()
@@ -837,7 +837,7 @@ local function CreateMainWindow()
     guildButton = CreateFrame("Button", "LFM_GuildButton", mainFrame, "UIPanelButtonTemplate")
     guildButton:SetWidth(90)
     guildButton:SetHeight(28)
-    guildButton:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 320, -220)
+    guildButton:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 320, -222)
     guildButton:SetText("Guild")
 
     guildButton:SetScript("OnClick", function()
@@ -849,7 +849,7 @@ local function CreateMainWindow()
     SetupActionButtonTooltip(guildButton, "Guild")
 
 
-    -- Explicitly sync action buttons & window state after window creation
+    -- Explicitly sync search button state after window creation
     LFM:UpdateSearchButton()
 
     -- Initially hidden until minimap icon or command opens it

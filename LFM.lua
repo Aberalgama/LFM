@@ -276,9 +276,14 @@ function LFM:FormatSearchMessage()
 
     local msg = "LF " .. rolesText .. " for " .. dungeon .. " " .. mode
 
-    -- Append Runes Roll if selected
-    if runesRoll and runesRoll ~= "" then
-        msg = msg .. ", on Runes we will use '" .. runesRoll .. "'"
+    -- Append Runes Roll if selected AND mode is HC or base Mythic
+    if runesRoll and runesRoll ~= "" and mode ~= "" then
+        local modeLower = string.lower(mode)
+        local isHC = (modeLower == "hc" or modeLower == "heroic")
+        local isMythicBase = (modeLower == "mythic")
+        if isHC or isMythicBase then
+            msg = msg .. ", on Runes we will use '" .. runesRoll .. "'"
+        end
     end
 
     return msg
@@ -684,14 +689,14 @@ local function CreateMainWindow()
         end
     end)
 
-    -- 5. Dungeon Dropdown
+    -- 5. Dungeon / Raid Dropdown
     dungeonDropDown = CreateFrame("Frame", "LFM_DungeonDropDown", mainFrame, "UIDropDownMenuTemplate")
     dungeonDropDown:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 370, startY)
     UIDropDownMenu_SetWidth(dungeonDropDown, 140)
 
     local dungeonLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     dungeonLabel:SetPoint("BOTTOM", dungeonDropDown, "TOP", 10, 4)
-    dungeonLabel:SetText("Dungeon")
+    dungeonLabel:SetText("Dungeon / Raid")
 
     UIDropDownMenu_Initialize(dungeonDropDown, function(self, level)
         RequestRaidInfo()

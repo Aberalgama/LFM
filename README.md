@@ -17,7 +17,7 @@ LFM helps you quickly identify dungeons you have already completed or have an ex
 
 * ⚙️ **Optional Group Requirements**
   - **Minimum required ST DPS**: Specify a Single-Target DPS requirement (e.g., `1K+` up to `30K+`). When at least 1 DD is selected, this is added to your message (e.g., `LF 2 DDs (2K+ ST) for Azjol-Nerub HC`).
-  - **Runes Roll Rules**: Select between **Round Robin** or **All NEED** loot rules. Appends the rune rule to your broadcast message (e.g., `, on Runes we will use 'Round Robin'`).
+  - **Runes Roll Rules**: Select between **Round Robin** or **All NEED** loot rules. Appends the rune rule to your broadcast message for Heroic and base Mythic modes (e.g., `, on Runes we will use 'Round Robin'`). For Mythic+ modes (M2..M30), the Runes roll rule is ignored.
 
 * 💬 **Chat Destinations**
   - Post directly to the **World** channel or **Guild** chat with dedicated action buttons.
@@ -27,9 +27,9 @@ LFM helps you quickly identify dungeons you have already completed or have an ex
 
 ### Images
 
-![Overview](img/lfm_overview.png)
-![Dungeons](img/dungeons_with_id.png)
-![Mode](img/mode.png)
+![Overview](img/overview.png)
+![Dungeons](img/dungeon_selection.png)
+![Mode](img/mode_selection.png)
 
 ### How to Install
 

@@ -354,16 +354,16 @@ function LFM:UpdateSearchButton()
     end
 end
 
--- Reset session data (wiped on login with character)
+-- Reset session data (wiped on login with character, but preserves selected_mode)
 function LFM:ResetData()
     LFM_DB = LFM_DB or {}
     LFM_DB.tanks_count = 0
     LFM_DB.heals_count = 0
     LFM_DB.dds_count = 0
     LFM_DB.selected_dungeon_raid = ""
-    LFM_DB.selected_mode = ""
     LFM_DB.st_dps = 0
     LFM_DB.runes_roll = nil
+    LFM_DB.selected_mode = LFM_DB.selected_mode or ""
     LFM_DB.minimap = LFM_DB.minimap or { minimapPos = 45 }
 
     if tankText then tankText:SetText("0") end
@@ -378,9 +378,15 @@ function LFM:ResetData()
         UIDropDownMenu_SetSelectedValue(dungeonDropDown, nil)
         UIDropDownMenu_SetText(dungeonDropDown, "")
     end
+
     if modeDropDown then
-        UIDropDownMenu_SetSelectedValue(modeDropDown, nil)
-        UIDropDownMenu_SetText(modeDropDown, "")
+        if LFM_DB.selected_mode ~= "" then
+            UIDropDownMenu_SetSelectedValue(modeDropDown, LFM_DB.selected_mode)
+            UIDropDownMenu_SetText(modeDropDown, LFM_DB.selected_mode)
+        else
+            UIDropDownMenu_SetSelectedValue(modeDropDown, nil)
+            UIDropDownMenu_SetText(modeDropDown, "")
+        end
     end
 
     LFM:UpdateSearchButton()

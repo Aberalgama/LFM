@@ -9,13 +9,13 @@ local DUNGEONS = {
     { uiName = "Arcatraz", apiName = "The Arcatraz" },
     { uiName = "Auchenai Crypts", apiName = "Auchenai Crypts" },
     { uiName = "Azjol-Nerub", apiName = "Azjol-Nerub" },
-    { uiName = "Blood Furnance", apiName = "The Blood Furnace" },
+    { uiName = "Blood Furnance", apiName = "Hellfire Citadel: The Blood Furnace" },
     { uiName = "Botanica", apiName = "The Botanica" },
     { uiName = "Drak'Tharon", apiName = "Drak'Tharon Keep" },
     { uiName = "Gundrak", apiName = "Gundrak" },
     { uiName = "Halls of Lightning", apiName = "Halls of Lightning" },
     { uiName = "Halls of Stone", apiName = "Halls of Stone" },
-    { uiName = "Hellfire Ramparts", apiName = "Hellfire Ramparts" },
+    { uiName = "Hellfire Ramparts", apiName = "Hellfire Citadel: Ramparts" },
     { uiName = "Mana-Tombs", apiName = "Mana-Tombs" },
     { uiName = "Mechanar", apiName = "The Mechanar" },
     { uiName = "Nexus", apiName = "The Nexus" },
@@ -29,7 +29,9 @@ local DUNGEONS = {
     { uiName = "Underbog", apiName = "The Underbog" },
     { uiName = "Utgarde Keep", apiName = "Utgarde Keep" },
     { uiName = "Utgarde Pinnacle", apiName = "Utgarde Pinnacle" },
-    { uiName = "Violet Hold", apiName = "The Violet Hold" }
+    { uiName = "Violet Hold", apiName = "The Violet Hold" },
+    { uiName = "Stonecore", apiName = "The Stonecore" },
+    { uiName = "Tol Vir", apiName = "Lost City of the Tol'vir" },
 }
 
 table.sort(DUNGEONS, function(a, b) return a.uiName < b.uiName end)

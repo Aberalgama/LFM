@@ -6,24 +6,24 @@ _G["LFM"] = LFM
 -- Default options: Map object with uiName and apiName
 local DUNGEONS = {
     { uiName = "Ahn'Kahet", apiName = "Ahn'kahet: The Old Kingdom" },
-    { uiName = "Arcatraz", apiName = "The Arcatraz" },
-    { uiName = "Auchenai Crypts", apiName = "Auchenai Crypts" },
     { uiName = "Azjol-Nerub", apiName = "Azjol-Nerub" },
-    { uiName = "Blood Furnance", apiName = "Hellfire Citadel: The Blood Furnace" },
+    { uiName = "Arcatraz", apiName = "The Arcatraz" },
+    { uiName = "Mechanar", apiName = "The Mechanar" },
     { uiName = "Botanica", apiName = "The Botanica" },
+    { uiName = "Auchenai Crypts", apiName = "Auchenai Crypts" },
+    { uiName = "Mana-Tombs", apiName = "Mana-Tombs" },
+    { uiName = "Sethekk Halls", apiName = "Sethekk Halls" },
+    { uiName = "Shadow Labyrinth", apiName = "Shadow Labyrinth" },
+    { uiName = "Blood Furnance", apiName = "Hellfire Citadel: The Blood Furnace" },
+    { uiName = "Hellfire Ramparts", apiName = "Hellfire Citadel: Ramparts" },
+    { uiName = "Shattered Halls", apiName = "The Shattered Halls" },
     { uiName = "Drak'Tharon", apiName = "Drak'Tharon Keep" },
     { uiName = "Gundrak", apiName = "Gundrak" },
     { uiName = "Halls of Lightning", apiName = "Halls of Lightning" },
     { uiName = "Halls of Stone", apiName = "Halls of Stone" },
-    { uiName = "Hellfire Ramparts", apiName = "Hellfire Citadel: Ramparts" },
-    { uiName = "Mana-Tombs", apiName = "Mana-Tombs" },
-    { uiName = "Mechanar", apiName = "The Mechanar" },
     { uiName = "Nexus", apiName = "The Nexus" },
     { uiName = "Oculus", apiName = "The Oculus" },
     { uiName = "Old Hillsbrad Foothills", apiName = "Old Hillsbrad Foothills" },
-    { uiName = "Sethekk Halls", apiName = "Sethekk Halls" },
-    { uiName = "Shadow Labyrinth", apiName = "Shadow Labyrinth" },
-    { uiName = "Shattered Halls", apiName = "The Shattered Halls" },
     { uiName = "Slave Pens", apiName = "The Slave Pens" },
     { uiName = "Steamvault", apiName = "The Steamvault" },
     { uiName = "Underbog", apiName = "The Underbog" },
@@ -34,15 +34,13 @@ local DUNGEONS = {
     { uiName = "Tol Vir", apiName = "Lost City of the Tol'vir" },
 }
 
-table.sort(DUNGEONS, function(a, b) return a.uiName < b.uiName end)
-
 local MODES = { "HC", "Mythic", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "M11", "M12", "M13", "M14", "M15", "M16", "M17", "M18", "M19", "M20", "M21", "M22", "M23", "M24", "M25", "M26", "M27", "M28", "M29", "M30" }
 
 -- Forward declarations
 local mainFrame, minimapButton
 local tankText, healText, ddText, stDpsText
 local dungeonDropDown, modeDropDown
-local roundRobinCB, allNeedCB, worldButton, guildButton
+local roundRobinCB, allNeedCB, portReadyCB, worldButton, guildButton
 
 -- Helper to format ST DPS numeric value to string ("1K+", "1.5K+", "30K+", or "")
 function LFM:FormatSTDps(val)
@@ -232,6 +230,7 @@ function LFM:FormatSearchMessage()
     local mode = (LFM_DB and LFM_DB.selected_mode) or ""
     local stDpsStr = LFM:FormatSTDps(LFM_DB and LFM_DB.st_dps)
     local runesRoll = LFM_DB and LFM_DB.runes_roll
+    local portReady = LFM_DB and LFM_DB.port_ready
 
     local roles = {}
 
@@ -286,6 +285,11 @@ function LFM:FormatSearchMessage()
         if isHC or isMythicBase then
             msg = msg .. ", on Runes we will use '" .. runesRoll .. "'"
         end
+    end
+
+    -- Append Port Ready if selected
+    if portReady then
+        msg = msg .. ", port ready"
     end
 
     return msg
@@ -363,6 +367,7 @@ function LFM:ResetData()
     LFM_DB.selected_dungeon_raid = ""
     LFM_DB.st_dps = 0
     LFM_DB.runes_roll = nil
+    LFM_DB.port_ready = false
     LFM_DB.selected_mode = LFM_DB.selected_mode or ""
     LFM_DB.minimap = LFM_DB.minimap or { minimapPos = 45 }
 
@@ -373,6 +378,7 @@ function LFM:ResetData()
 
     if roundRobinCB then roundRobinCB:SetChecked(false) end
     if allNeedCB then allNeedCB:SetChecked(false) end
+    if portReadyCB then portReadyCB:SetChecked(false) end
 
     if dungeonDropDown then
         UIDropDownMenu_SetSelectedValue(dungeonDropDown, nil)
@@ -743,7 +749,7 @@ local function CreateMainWindow()
     local stBox = CreateFrame("Frame", nil, mainFrame)
     stBox:SetWidth(60)
     stBox:SetHeight(32)
-    stBox:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 70, optY)
+    stBox:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 75, optY)
     stBox:SetBackdrop({
         bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -792,17 +798,17 @@ local function CreateMainWindow()
     end)
 
     -- Runes Roll Checkboxes
-    local runesLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    runesLabel:SetPoint("BOTTOM", mainFrame, "TOPLEFT", 385, optY + 4)
-    runesLabel:SetText("Runes roll")
-
     roundRobinCB = CreateFrame("CheckButton", "LFM_RoundRobinCB", mainFrame, "UICheckButtonTemplate")
-    roundRobinCB:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 270, optY + 2)
+    roundRobinCB:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 245, optY + 2)
     _G[roundRobinCB:GetName() .. "Text"]:SetText("Round Robin")
 
     allNeedCB = CreateFrame("CheckButton", "LFM_AllNeedCB", mainFrame, "UICheckButtonTemplate")
-    allNeedCB:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 410, optY + 2)
+    allNeedCB:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 345, optY + 2)
     _G[allNeedCB:GetName() .. "Text"]:SetText("All NEED")
+
+    local runesLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    runesLabel:SetPoint("BOTTOM", mainFrame, "TOPLEFT", 330, optY + 4)
+    runesLabel:SetText("Runes roll")
 
     roundRobinCB:SetScript("OnClick", function(self)
         if self:GetChecked() then
@@ -821,6 +827,20 @@ local function CreateMainWindow()
         else
             LFM_DB.runes_roll = nil
         end
+        LFM:UpdateSearchButton()
+    end)
+
+    -- Port Ready Checkbox
+    portReadyCB = CreateFrame("CheckButton", "LFM_PortReadyCB", mainFrame, "UICheckButtonTemplate")
+    portReadyCB:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 480, optY + 2)
+
+    local portReadyLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    portReadyLabel:SetPoint("BOTTOM", portReadyCB, "TOP", 0, 4)
+    portReadyLabel:SetText("Port ready")
+
+    portReadyCB:SetScript("OnClick", function(self)
+        if not LFM_DB then LFM_DB = {} end
+        LFM_DB.port_ready = self:GetChecked() and true or false
         LFM:UpdateSearchButton()
     end)
 

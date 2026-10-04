@@ -23,7 +23,6 @@ local DUNGEONS = {
     { uiName = "Halls of Stone", apiName = "Halls of Stone" },
     { uiName = "Nexus", apiName = "The Nexus" },
     { uiName = "Oculus", apiName = "The Oculus" },
-    { uiName = "Old Hillsbrad Foothills", apiName = "Old Hillsbrad Foothills" },
     { uiName = "Slave Pens", apiName = "The Slave Pens" },
     { uiName = "Steamvault", apiName = "The Steamvault" },
     { uiName = "Underbog", apiName = "The Underbog" },

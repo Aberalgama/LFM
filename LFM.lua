@@ -51,6 +51,32 @@ function LFM:FormatSTDps(val)
     end
 end
 
+-- Helper to format remaining reset seconds into a readable string (e.g., "1d 4h", "2h 15m", "<1m")
+function LFM:FormatResetTime(reset)
+    if not reset or reset <= 0 then return "" end
+    local days = math.floor(reset / 86400)
+    local hours = math.floor((reset % 86400) / 3600)
+    local mins = math.floor((reset % 3600) / 60)
+
+    if days > 0 then
+        if hours > 0 then
+            return string.format("%dd %dh", days, hours)
+        else
+            return string.format("%dd", days)
+        end
+    elseif hours > 0 then
+        if mins > 0 then
+            return string.format("%dh %dm", hours, mins)
+        else
+            return string.format("%dh", hours)
+        end
+    elseif mins > 0 then
+        return string.format("%dm", mins)
+    else
+        return "<1m"
+    end
+end
+
 -- Helper to find DUNGEONS entry by uiName or object
 function LFM:GetDungeonEntry(dungeon)
     if type(dungeon) == "table" then return dungeon end
@@ -140,10 +166,10 @@ function LFM:DebugPrintLockInfo()
     DEFAULT_CHAT_FRAME:AddMessage(GREEN .. "========================" .. RESET)
 end
 
--- Check if player has an active saved ID (lock) for a specific dungeon and mode combination
-function LFM:IsLockedForDungeonAndMode(dungeon, mode)
+-- Get lockout info (isLocked, resetTimeSeconds) for a dungeon and mode combination
+function LFM:GetLockInfoForDungeonAndMode(dungeon, mode)
     if not dungeon or dungeon == "" or not mode or mode == "" then
-        return false
+        return false, 0
     end
 
     local modeLower = string.lower(mode)
@@ -153,20 +179,20 @@ function LFM:IsLockedForDungeonAndMode(dungeon, mode)
     local isMythicBase = (modeLower == "mythic")
 
     if not (isHC or isMythicBase) then
-        return false
+        return false, 0
     end
 
     local entry = LFM:GetDungeonEntry(dungeon)
     local uiName = entry and entry.uiName or (type(dungeon) == "string" and dungeon or "")
     local apiName = entry and entry.apiName or uiName
-    if uiName == "" then return false end
+    if uiName == "" then return false, 0 end
 
     local targetApiClean = string.lower(apiName):gsub("[%s%p]", "")
     local targetUiClean = string.lower(uiName):gsub("^the%s+", ""):gsub("[%s%p]", "")
 
     local num = GetNumSavedInstances()
     for i = 1, num do
-        local name, _, _, difficulty, isLocked, _, _, _, _, difficultyName = GetSavedInstanceInfo(i)
+        local name, _, reset, difficulty, isLocked, _, _, _, _, difficultyName = GetSavedInstanceInfo(i)
         if isLocked and name then
             local cleanName = string.lower(name):gsub("^the%s+", ""):gsub("[%s%p]", "")
             if cleanName == targetApiClean or cleanName:find(targetUiClean, 1, true) or targetUiClean:find(cleanName, 1, true) then
@@ -180,12 +206,18 @@ function LFM:IsLockedForDungeonAndMode(dungeon, mode)
                 end
 
                 if modeMatches then
-                    return true
+                    return true, reset or 0
                 end
             end
         end
     end
-    return false
+    return false, 0
+end
+
+-- Check if player has an active saved ID (lock) for a specific dungeon and mode combination
+function LFM:IsLockedForDungeonAndMode(dungeon, mode)
+    local isLocked = LFM:GetLockInfoForDungeonAndMode(dungeon, mode)
+    return isLocked
 end
 
 -- Check if dungeon is locked for the currently selected mode
@@ -208,15 +240,25 @@ function LFM:RefreshDropdownText()
     local mode = LFM_DB and LFM_DB.selected_mode
 
     if dungeonDropDown and dungeon and dungeon ~= "" then
-        local isLocked = LFM:IsLockedForDungeonAndMode(dungeon, mode)
-        local text = isLocked and ("|cffff3333" .. dungeon .. "|r") or dungeon
-        UIDropDownMenu_SetText(dungeonDropDown, text)
+        local isLocked, resetSec = LFM:GetLockInfoForDungeonAndMode(dungeon, mode)
+        if isLocked then
+            local timeStr = LFM:FormatResetTime(resetSec)
+            local resetText = (timeStr ~= "") and (" (" .. timeStr .. ")") or ""
+            UIDropDownMenu_SetText(dungeonDropDown, "|cffff3333" .. dungeon .. resetText .. "|r")
+        else
+            UIDropDownMenu_SetText(dungeonDropDown, dungeon)
+        end
     end
 
     if modeDropDown and mode and mode ~= "" then
-        local isLocked = LFM:IsLockedForDungeonAndMode(dungeon, mode)
-        local text = isLocked and ("|cffff3333" .. mode .. "|r") or mode
-        UIDropDownMenu_SetText(modeDropDown, text)
+        local isLocked, resetSec = LFM:GetLockInfoForDungeonAndMode(dungeon, mode)
+        if isLocked then
+            local timeStr = LFM:FormatResetTime(resetSec)
+            local resetText = (timeStr ~= "") and (" (" .. timeStr .. ")") or ""
+            UIDropDownMenu_SetText(modeDropDown, "|cffff3333" .. mode .. resetText .. "|r")
+        else
+            UIDropDownMenu_SetText(modeDropDown, mode)
+        end
     end
 end
 
@@ -683,16 +725,19 @@ local function CreateMainWindow()
         local selectedDungeon = LFM_DB and LFM_DB.selected_dungeon_raid
         local info = UIDropDownMenu_CreateInfo()
         for _, mode in ipairs(MODES) do
-            local isLocked = LFM:IsLockedForDungeonAndMode(selectedDungeon, mode)
-            info.text = isLocked and ("|cffff3333" .. mode .. "|r") or mode
+            local isLocked, resetSec = LFM:GetLockInfoForDungeonAndMode(selectedDungeon, mode)
+            if isLocked then
+                local timeStr = LFM:FormatResetTime(resetSec)
+                local resetText = (timeStr ~= "") and (" (" .. timeStr .. ")") or ""
+                info.text = "|cffff3333" .. mode .. resetText .. "|r"
+            else
+                info.text = mode
+            end
             info.value = mode
             info.func = function(btn)
                 if not LFM_DB then LFM_DB = {} end
                 LFM_DB.selected_mode = btn.value
                 UIDropDownMenu_SetSelectedValue(modeDropDown, btn.value)
-                local currentDungeon = LFM_DB and LFM_DB.selected_dungeon_raid
-                local text = LFM:IsLockedForDungeonAndMode(currentDungeon, btn.value) and ("|cffff3333" .. btn.value .. "|r") or btn.value
-                UIDropDownMenu_SetText(modeDropDown, text)
                 LFM:RefreshDropdownText()
                 LFM:UpdateSearchButton()
                 CloseMenus()
@@ -717,16 +762,19 @@ local function CreateMainWindow()
         local info = UIDropDownMenu_CreateInfo()
         for _, entry in ipairs(DUNGEONS) do
             local name = entry.uiName
-            local isLocked = LFM:IsLockedForDungeonAndMode(name, selectedMode)
-            info.text = isLocked and ("|cffff3333" .. name .. "|r") or name
+            local isLocked, resetSec = LFM:GetLockInfoForDungeonAndMode(name, selectedMode)
+            if isLocked then
+                local timeStr = LFM:FormatResetTime(resetSec)
+                local resetText = (timeStr ~= "") and (" (" .. timeStr .. ")") or ""
+                info.text = "|cffff3333" .. name .. resetText .. "|r"
+            else
+                info.text = name
+            end
             info.value = name
             info.func = function(btn)
                 if not LFM_DB then LFM_DB = {} end
                 LFM_DB.selected_dungeon_raid = btn.value
                 UIDropDownMenu_SetSelectedValue(dungeonDropDown, btn.value)
-                local currentMode = LFM_DB and LFM_DB.selected_mode
-                local text = LFM:IsLockedForDungeonAndMode(btn.value, currentMode) and ("|cffff3333" .. btn.value .. "|r") or btn.value
-                UIDropDownMenu_SetText(dungeonDropDown, text)
                 LFM:RefreshDropdownText()
                 LFM:UpdateSearchButton()
                 CloseMenus()

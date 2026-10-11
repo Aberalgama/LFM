@@ -33,7 +33,7 @@ local DUNGEONS = {
     { uiName = "Tol Vir", apiName = "Lost City of the Tol'vir" },
 }
 
-local MODES = { "HC", "Mythic", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "M11", "M12", "M13", "M14", "M15", "M16", "M17", "M18", "M19", "M20", "M21", "M22", "M23", "M24", "M25", "M26", "M27", "M28", "M29", "M30" }
+local MODES = { "HC", "M0", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "M11", "M12", "M13", "M14", "M15", "M16", "M17", "M18", "M19", "M20", "M21", "M22", "M23", "M24", "M25", "M26", "M27", "M28", "M29", "M30" }
 
 -- Forward declarations
 local mainFrame, minimapButton
@@ -174,9 +174,9 @@ function LFM:GetLockInfoForDungeonAndMode(dungeon, mode)
 
     local modeLower = string.lower(mode)
 
-    -- Saved IDs (locks) ONLY exist for Heroic/HC and base Mythic. M2..M30 have no locks!
+    -- Saved IDs (locks) ONLY exist for Heroic/HC and base Mythic (M0). M2..M30 have no locks!
     local isHC = (modeLower == "hc" or modeLower == "heroic")
-    local isMythicBase = (modeLower == "mythic")
+    local isMythicBase = (modeLower == "mythic" or modeLower == "m0")
 
     if not (isHC or isMythicBase) then
         return false, 0
@@ -316,13 +316,13 @@ function LFM:FormatSearchMessage()
         rolesText = roles[1] .. ", " .. roles[2] .. " and " .. roles[3]
     end
 
-    local msg = "LF " .. rolesText .. " for " .. dungeon .. " " .. mode
+    local msg = "{star}{star}{star} LF " .. rolesText .. " for " .. dungeon .. " " .. mode
 
-    -- Append Runes Roll if selected AND mode is HC or base Mythic
+    -- Append Runes Roll if selected AND mode is HC or base Mythic (M0)
     if runesRoll and runesRoll ~= "" and mode ~= "" then
         local modeLower = string.lower(mode)
         local isHC = (modeLower == "hc" or modeLower == "heroic")
-        local isMythicBase = (modeLower == "mythic")
+        local isMythicBase = (modeLower == "mythic" or modeLower == "m0")
         if isHC or isMythicBase then
             msg = msg .. ", on Runes we will use '" .. runesRoll .. "'"
         end
@@ -332,6 +332,8 @@ function LFM:FormatSearchMessage()
     if portReady then
         msg = msg .. ", port ready"
     end
+
+    msg = msg .. " {star}{star}{star}"
 
     return msg
 end
